@@ -10,7 +10,7 @@ import {
 import Navbar from "./components/Navbar";
 import Product from "./components/Product";
 import Home from "./components/Home";
-import PlaceOrder from "./components/placeorder";
+import PlaceOrder from "./components/Placeorder";
 import Admin from "./components/Admin";
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
