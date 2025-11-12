@@ -1,37 +1,107 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router";
+import { useAuth } from "../context/AuthContext";
 
-const Cart = ({ isOpen, onClose, cart, updateQuantity, removeFromCart, getCartTotal }) => {
+const Cart = ({
+  isOpen,
+  onClose,
+  cart,
+  updateQuantity,
+  removeFromCart,
+  getCartTotal,
+  onLoginRequired,
+}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { currentUser } = useAuth();
   const [data, setData] = useState("");
+  const [loading, setLoading] = useState(false);
+  const cartRef = useRef(null);
 
-  // Generate cart summary whenever cart changes
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (cartRef.current && !cartRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
+
+  // Build cart summary string
   useEffect(() => {
     if (cart && cart.length > 0) {
       const summary =
         "Product Name\tPrice\tQuantity\n" +
-        cart.map((item) => `${item.name}\t${item.price}\t${item.quantity}`).join("\n") +
-        `\nTotal: ₹${getCartTotal().toFixed(2)}`;
+        cart
+          .map((item) => `${item.name}\t${item.price}\t${item.quantity}`)
+          .join("\n") +
+        `\nTotal: Rs${getCartTotal().toFixed(2)}`;
       setData(summary);
     } else {
       setData("");
     }
   }, [cart, getCartTotal]);
 
-  const cartSubmit = (e) => {
-    e.preventDefault();
-    navigate("/email", { state: { data: data } });
+  // When user clicks checkout, navigate to placeorder page and pass data
+  const cartSubmit = async (e) => {
+    e?.preventDefault();
+
+    if (!currentUser) {
+      onClose();
+      if (onLoginRequired) onLoginRequired();
+      return;
+    }
+
+    if (!cart || cart.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+
+    const productList = cart.map((item) => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image,
+    }));
+
+    const total = Number(getCartTotal());
+
+    // Navigate to placeorder and pass productList, total and readable summary
+    onClose();
+    navigate("/placeorder", {
+      state: {
+        data, // summary string for display
+        productList,
+        total,
+      },
+    });
+  };
+
+  const handleContinueShopping = () => {
+    onClose();
+    if (location.pathname === "/placeorder") {
+      navigate("/products");
+    }
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
-      <div className="bg-white w-full max-w-md h-full overflow-y-auto">
+      <div
+        ref={cartRef}
+        className="bg-white w-full max-w-md h-full overflow-y-auto"
+      >
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-800">Shopping Cart</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">
-            ×
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+          >
+            x
           </button>
         </div>
 
@@ -52,7 +122,9 @@ const Cart = ({ isOpen, onClose, cart, updateQuantity, removeFromCart, getCartTo
                 />
               </svg>
               <p className="text-gray-500 text-lg">Your cart is empty</p>
-              <p className="text-gray-400 text-sm mt-2">Add some organic products to get started!</p>
+              <p className="text-gray-400 text-sm mt-2">
+                Add some organic products to get started!
+              </p>
             </div>
           ) : (
             <>
@@ -62,25 +134,40 @@ const Cart = ({ isOpen, onClose, cart, updateQuantity, removeFromCart, getCartTo
                     key={item.id}
                     className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg"
                   >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                    )}
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800">{item.name}</h3>
-                      <p className="text-green-600 font-semibold">₹{item.price}</p>
+                      <h3 className="font-semibold text-gray-800">
+                        {item.name}
+                      </h3>
+                      <p className="text-green-600 font-semibold">
+                        Rs{item.price}
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        onClick={() =>
+                          updateQuantity(
+                            item.id,
+                            Math.max(1, item.quantity - 1)
+                          )
+                        }
                         className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 font-bold"
                       >
                         -
                       </button>
-                      <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                      <span className="w-8 text-center font-semibold">
+                        {item.quantity}
+                      </span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() =>
+                          updateQuantity(item.id, item.quantity + 1)
+                        }
                         className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 font-bold"
                       >
                         +
@@ -110,18 +197,28 @@ const Cart = ({ isOpen, onClose, cart, updateQuantity, removeFromCart, getCartTo
 
               <div className="border-t border-gray-200 pt-6">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-lg font-semibold text-gray-800">Total:</span>
+                  <span className="text-lg font-semibold text-gray-800">
+                    Total:
+                  </span>
                   <span className="text-2xl font-bold text-green-600">
-                    ₹{getCartTotal().toFixed(2)}
+                    Rs{getCartTotal().toFixed(2)}
                   </span>
                 </div>
+
                 <button
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
                   onClick={cartSubmit}
+                  disabled={loading}
                 >
-                  Proceed to Checkout
+                  {loading
+                    ? "Please wait..."
+                    : currentUser
+                    ? "Proceed to Checkout"
+                    : "Login to Checkout"}
                 </button>
+
                 <button
+                  onClick={handleContinueShopping}
                   className="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
                 >
                   Continue Shopping
