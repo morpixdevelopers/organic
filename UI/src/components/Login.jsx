@@ -47,7 +47,7 @@ const Login = ({ isOpen, onClose }) => {
       if (result.success) {
         onClose();
         resetForm();
-        navigate("/products");
+        navigate("/");
       } else {
         setError(result.error || "Failed to sign in with Google");
       }
@@ -92,7 +92,7 @@ const Login = ({ isOpen, onClose }) => {
       if (result.success) {
         onClose();
         resetForm();
-        navigate("/products");
+        navigate("/");
       } else {
         setError(
           result.error || `Failed to ${isSignUp ? "sign up" : "sign in"}`
